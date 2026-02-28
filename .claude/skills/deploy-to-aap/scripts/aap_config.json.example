@@ -1,0 +1,30 @@
+{
+  "aap_url": "https://aap.example.com",
+  "job_templates": {
+    "infrastructure": {
+      "id": 10,
+      "name": "Deploy Infrastructure",
+      "description": "Provisions VMs, networks, load balancers, and other infrastructure"
+    },
+    "application": {
+      "id": 15,
+      "name": "Deploy Application",
+      "description": "Clones dev branch, installs dependencies, and deploys Flask application"
+    },
+    "tests": {
+      "id": 20,
+      "name": "Run Tests",
+      "description": "Executes pytest suite against deployed application"
+    }
+  },
+  "mock_mode": true,
+  "github": {
+    "repo_url": "git@github.com:username/govern-agent-deploy.git",
+    "dev_branch": "dev"
+  },
+  "deployment": {
+    "environment": "development",
+    "timeout": 3600,
+    "auto_approve": false
+  }
+}
