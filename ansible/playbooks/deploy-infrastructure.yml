@@ -1,0 +1,47 @@
+---
+# Sample Ansible Playbook: Deploy Infrastructure
+# This playbook demonstrates infrastructure provisioning for the banking application
+
+- name: Deploy Banking Application Infrastructure
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    git_branch: "{{ git_branch | default('dev') }}"
+    environment: "{{ environment | default('development') }}"
+
+  tasks:
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Deploying infrastructure for banking application"
+          - "Branch: {{ git_branch }}"
+          - "Environment: {{ environment }}"
+
+    - name: Provision cloud VMs (example)
+      debug:
+        msg: "Would provision VMs here using cloud provider modules"
+      # In real implementation:
+      # - amazon.aws.ec2_instance
+      # - azure.azcollection.azure_rm_virtualmachine
+      # - google.cloud.gcp_compute_instance
+
+    - name: Configure networking (example)
+      debug:
+        msg: "Would configure VPC, subnets, security groups"
+      # In real implementation:
+      # - Configure VPC
+      # - Create subnets
+      # - Set up security groups
+      # - Configure load balancer
+
+    - name: Set up load balancer (example)
+      debug:
+        msg: "Would configure application load balancer"
+
+    - name: Configure DNS (example)
+      debug:
+        msg: "Would update DNS records for the application"
+
+    - name: Infrastructure deployment complete
+      debug:
+        msg: "Infrastructure provisioning completed successfully"

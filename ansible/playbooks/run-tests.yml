@@ -1,0 +1,76 @@
+---
+# Sample Ansible Playbook: Run Tests
+# This playbook executes the test suite against the deployed application
+
+- name: Run Banking Application Tests
+  hosts: app_servers
+  become: yes
+  vars:
+    app_user: "bankapp"
+    app_dir: "/opt/banking-app"
+
+  tasks:
+    - name: Install test dependencies
+      pip:
+        requirements: "{{ app_dir }}/src/requirements-dev.txt"
+        virtualenv: "{{ app_dir }}/venv"
+      become_user: "{{ app_user }}"
+
+    - name: Run pytest with coverage
+      shell: |
+        source {{ app_dir }}/venv/bin/activate
+        cd {{ app_dir }}/src
+        pytest tests/ -v --cov=banking_app --cov-report=html --cov-report=term
+      args:
+        executable: /bin/bash
+      become_user: "{{ app_user }}"
+      register: test_results
+      ignore_errors: yes
+
+    - name: Display test results
+      debug:
+        var: test_results.stdout_lines
+
+    - name: Check if tests passed
+      assert:
+        that:
+          - test_results.rc == 0
+        fail_msg: "Tests failed! See output above for details."
+        success_msg: "All tests passed successfully!"
+
+    - name: Fetch coverage report
+      fetch:
+        src: "{{ app_dir }}/src/htmlcov/index.html"
+        dest: "./coverage-reports/{{ inventory_hostname }}/"
+        flat: yes
+      when: test_results.rc == 0
+
+- name: Integration Tests
+  hosts: localhost
+  gather_facts: no
+  vars:
+    app_url: "http://{{ groups['app_servers'][0] }}:5000"
+
+  tasks:
+    - name: Test health endpoint
+      uri:
+        url: "{{ app_url }}/api/v1/health"
+        return_content: yes
+      register: health
+
+    - name: Verify health check response
+      assert:
+        that:
+          - health.status == 200
+          - health.json.status == "healthy"
+
+    - name: Display test summary
+      debug:
+        msg:
+          - "==================================="
+          - "       Test Summary"
+          - "==================================="
+          - "Unit Tests: PASSED"
+          - "Integration Tests: PASSED"
+          - "Health Check: PASSED"
+          - "==================================="

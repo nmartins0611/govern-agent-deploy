@@ -1,0 +1,95 @@
+---
+# Sample Ansible Playbook: Deploy Application
+# This playbook deploys the Flask banking application to target servers
+
+- name: Deploy Banking Application
+  hosts: app_servers
+  become: yes
+  vars:
+    git_branch: "{{ git_branch | default('dev') }}"
+    app_port: "{{ app_port | default(5000) }}"
+    app_user: "bankapp"
+    app_dir: "/opt/banking-app"
+    repo_url: "https://github.com/your-org/govern-agent-deploy.git"
+
+  tasks:
+    - name: Install system dependencies
+      package:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - git
+        state: present
+
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        home: "{{ app_dir }}"
+        shell: /bin/bash
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Clone repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}/src"
+        version: "{{ git_branch }}"
+        force: yes
+      become_user: "{{ app_user }}"
+
+    - name: Create virtual environment
+      command: python3 -m venv {{ app_dir }}/venv
+      args:
+        creates: "{{ app_dir }}/venv"
+      become_user: "{{ app_user }}"
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ app_dir }}/src/requirements.txt"
+        virtualenv: "{{ app_dir }}/venv"
+      become_user: "{{ app_user }}"
+
+    - name: Create systemd service file
+      template:
+        src: banking-app.service.j2
+        dest: /etc/systemd/system/banking-app.service
+      notify: Restart banking app
+
+    - name: Enable and start banking app service
+      systemd:
+        name: banking-app
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for application to be ready
+      wait_for:
+        port: "{{ app_port }}"
+        delay: 5
+        timeout: 30
+
+    - name: Verify application health
+      uri:
+        url: "http://localhost:{{ app_port }}/api/v1/health"
+        return_content: yes
+      register: health_check
+      retries: 3
+      delay: 5
+
+    - name: Display health check result
+      debug:
+        var: health_check.json
+
+  handlers:
+    - name: Restart banking app
+      systemd:
+        name: banking-app
+        state: restarted

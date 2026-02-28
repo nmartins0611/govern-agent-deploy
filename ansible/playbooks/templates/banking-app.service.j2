@@ -1,0 +1,19 @@
+[Unit]
+Description=Banking Application
+After=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_user }}
+WorkingDirectory={{ app_dir }}/src
+Environment="PATH={{ app_dir }}/venv/bin"
+Environment="FLASK_HOST=0.0.0.0"
+Environment="FLASK_PORT={{ app_port }}"
+Environment="FLASK_DEBUG=False"
+ExecStart={{ app_dir }}/venv/bin/python run.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
