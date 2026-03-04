@@ -1,9 +1,11 @@
 # Deploy with Commit Skill
 # Combines git operations with AAP job template execution
-# Last updated: 2026-03-04
+# Last updated: 2026-03-04 (updated for dev branch deployment)
 
 ## Purpose
-This skill automates the complete deployment workflow: commit code changes to git, trigger an AAP deployment job template, monitor execution, and report server details from the deployment results.
+This skill automates the complete deployment workflow: commit code changes to git, push to dev branch, trigger an AAP deployment job template, monitor execution, and report server details from the deployment results.
+
+**Key Behavior**: All deployments automatically push commits to the `dev` branch (or create it if it doesn't exist) to ensure development deployments are isolated from the main branch.
 
 ## Skill Activation
 
@@ -50,16 +52,29 @@ When activated, follow this 6-step process:
 - Never skip hooks or force operations
 - Use heredoc format for commit messages
 
-### Step 3 — Optional Push to Remote
+### Step 3 — Push to Dev Branch
 **Actions**:
-1. Check if current branch tracks a remote: `git rev-parse --abbrev-ref --symbolic-full-name @{u}`
-2. If tracking remote:
-   - Ask: "Push commit to remote before deployment? (yes/no)"
-   - If yes: `git push`
-   - Confirm push succeeded
-3. If not tracking remote:
-   - Inform: "Local branch not tracking remote, skipping push"
-   - Continue to deployment
+1. Check current branch: `git branch --show-current`
+2. If not on `dev` branch:
+   - Check if dev branch exists: `git rev-parse --verify dev 2>/dev/null`
+   - If dev branch exists:
+     - Create new branch from current commit: `git checkout -b dev-deploy-[timestamp]`
+     - Inform: "Created branch dev-deploy-[timestamp] from current commit"
+   - If dev branch does not exist:
+     - Create dev branch: `git checkout -b dev`
+     - Inform: "Created new dev branch"
+   - If already on dev branch:
+     - Continue with current branch
+3. Check if origin remote exists: `git remote -v | grep origin`
+4. Push to dev branch:
+   - If dev branch tracks remote: `git push`
+   - If dev branch doesn't track remote: `git push -u origin dev`
+   - Display: "✓ Pushed commit [sha] to origin/dev"
+5. Confirm push succeeded with: `git log origin/dev -1 --oneline`
+6. Save branch info for deployment context:
+   - Branch: dev (or dev-deploy-[timestamp])
+   - Commit SHA: [sha]
+   - Remote: origin/dev
 
 ### Step 4 — Discover AAP Job Template
 **Trigger**: Commit complete (or skipped)
@@ -90,8 +105,9 @@ When activated, follow this 6-step process:
    - Template: [template name]
    - Inventory: [inventory name] ([host count] hosts)
    - Environment: [dev/staging/prod if detectable]
-   - Extra vars: [if any]
+   - Branch: dev (pushed to origin/dev)
    - Latest commit: [git log -1 --oneline]
+   - Extra vars: [if any]
 
    Proceed with deployment? (yes/no)
    ```
@@ -245,12 +261,9 @@ Claude:
 ✓ Changes committed successfully
 Commit: a1b2c3d Add cheeseburger consumption map application
 
-Push to remote? (yes/no)
-
-Developer: "yes"
-
-Claude:
-✓ Pushed to origin/master
+Switching to dev branch for deployment...
+Created new dev branch
+✓ Pushed commit a1b2c3d to origin/dev
 
 Loading AAP job templates...
 Found template: "Deploy environment for dev" (ID: 42)
@@ -259,8 +272,9 @@ Ready to deploy:
 - Template: Deploy environment for dev
 - Inventory: dev-webservers (3 hosts)
 - Environment: dev
-- Extra vars: none
+- Branch: dev (pushed to origin/dev)
 - Latest commit: a1b2c3d Add cheeseburger consumption map application
+- Extra vars: none
 
 Proceed with deployment? (yes/no)
 
@@ -311,10 +325,12 @@ Next steps:
    - Allow developer to review and modify commit message
    - Never skip git hooks
 
-2. **Push Confirmation**:
-   - Always ask before pushing to remote
-   - Show branch name and remote name
-   - Confirm push succeeded before deployment
+2. **Dev Branch Push**:
+   - Automatically switches to or creates dev branch for deployments
+   - Never pushes development deployments to main/master branch
+   - Pushes to origin/dev before triggering deployment
+   - Confirms push succeeded before deployment
+   - Displays branch and commit SHA in pre-flight summary
 
 3. **Deployment Confirmation**:
    - Apply all AAP safety guardrails from CLAUDE.md
@@ -343,8 +359,10 @@ Both skills can coexist:
 The skill works correctly when:
 - Developer can deploy with a single command
 - All changes are committed before deployment
+- Commits are automatically pushed to dev branch (not main/master)
 - Job templates are discovered and launched automatically
 - Deployment is monitored in real-time
 - Server details are extracted and displayed clearly
 - Failed deployments show errors and suggest fixes
 - No manual AAP UI access is needed for standard deployments
+- Dev branch isolation prevents accidental main branch deployments
