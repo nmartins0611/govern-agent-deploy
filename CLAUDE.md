@@ -4,6 +4,11 @@
 # Scope: job triggering, monitoring, and results via AAP API
 # Last updated: 2026-03-04
 
+## Related Skills
+
+- **DEPLOY_SKILL.md** - Deploy with Commit Skill: Combines git operations with AAP deployment jobs. Use this when the developer wants to commit code changes and deploy in one workflow.
+- **This file (CLAUDE.md)** - Base AAP Job Execution Skill: Use for general AAP job template execution (patching, restarts, provisioning, etc.)
+
 ## Purpose
 This skill enables Claude Code to trigger and manage Ansible Automation Platform (AAP) job templates conversationally through the existing ansible-aap MCP server connection. All AAP interactions must go through the MCP server tools - never make direct API calls.
 

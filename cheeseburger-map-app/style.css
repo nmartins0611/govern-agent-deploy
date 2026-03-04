@@ -1,0 +1,123 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+#map {
+    height: 600px;
+    width: 100%;
+}
+
+.legend {
+    background: #f8f9fa;
+    padding: 20px;
+    margin: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #f5576c;
+}
+
+.legend h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.legend-color {
+    width: 30px;
+    height: 20px;
+    margin-right: 10px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+.stats {
+    background: #f8f9fa;
+    padding: 20px;
+    margin: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.stats h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.stats ol {
+    margin-left: 20px;
+}
+
+.stats li {
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+footer {
+    background: #f8f9fa;
+    text-align: center;
+    padding: 15px;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.leaflet-popup-content {
+    font-size: 14px;
+}
+
+.leaflet-popup-content h4 {
+    margin: 0 0 10px 0;
+    color: #f5576c;
+}
+
+.leaflet-popup-content p {
+    margin: 5px 0;
+}
+
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.8em;
+    }
+
+    #map {
+        height: 400px;
+    }
+}

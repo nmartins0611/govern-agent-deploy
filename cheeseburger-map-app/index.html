@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Cheeseburger Consumption Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍔 Global Cheeseburger Consumption Map</h1>
+            <p>Average cheeseburgers consumed per person per year</p>
+        </header>
+
+        <div id="map"></div>
+
+        <div class="legend">
+            <h3>Consumption Levels</h3>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #006837;"></span>
+                <span>Low (0-10 burgers/year)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #31a354;"></span>
+                <span>Medium (11-25 burgers/year)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #78c679;"></span>
+                <span>High (26-50 burgers/year)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #c2e699;"></span>
+                <span>Very High (51-75 burgers/year)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background-color: #ffffcc;"></span>
+                <span>Extreme (76+ burgers/year)</span>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h3>Top 5 Countries</h3>
+            <ol id="top-countries"></ol>
+        </div>
+
+        <footer>
+            <p>Data is for demonstration purposes only</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
