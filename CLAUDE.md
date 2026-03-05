@@ -424,6 +424,384 @@ Maintain in conversation memory:
 - Current monitoring state (job_id, start_time, last_status)
 - Template duration baselines (calculate from recent job history)
 
+## Alternative Integration Methods
+
+**Default Method**: This skill uses MCP server tools (as documented above). However, users may choose alternative integration methods based on their environment and requirements. Uncomment and configure one of the following alternatives if preferred:
+
+<!-- ALTERNATIVE 1: DIRECT AAP REST API INTEGRATION
+## Direct API Integration (Commented Out - Enable if Not Using MCP)
+
+If you prefer to interact directly with the AAP REST API instead of using MCP tools, uncomment this section and comment out the MCP tool patterns above.
+
+### Configuration Requirements
+- AAP API URL: https://your-aap-controller.example.com
+- Authentication: Personal Access Token (PAT) or OAuth2
+- API Version: v2 (Controller API)
+
+### Environment Setup
+```bash
+export AAP_HOST="https://your-aap-controller.example.com"
+export AAP_TOKEN="your-personal-access-token"
+export AAP_VERIFY_SSL="true"  # Set to false for self-signed certs
+```
+
+### API Endpoint Patterns
+
+**List Job Templates**:
+```bash
+curl -X GET "${AAP_HOST}/api/v2/job_templates/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}" \
+  -H "Content-Type: application/json"
+```
+
+**Get Template Details**:
+```bash
+curl -X GET "${AAP_HOST}/api/v2/job_templates/{template_id}/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**Launch Job Template**:
+```bash
+curl -X POST "${AAP_HOST}/api/v2/job_templates/{template_id}/launch/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "extra_vars": {
+      "version": "2.1.4",
+      "environment": "staging"
+    },
+    "inventory": 123,
+    "limit": "webservers"
+  }'
+```
+
+**Get Job Status**:
+```bash
+curl -X GET "${AAP_HOST}/api/v2/jobs/{job_id}/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**Get Job Output/Logs**:
+```bash
+curl -X GET "${AAP_HOST}/api/v2/jobs/{job_id}/stdout/?format=json" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**Get Job Events** (task-level details):
+```bash
+curl -X GET "${AAP_HOST}/api/v2/jobs/{job_id}/job_events/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**Cancel Running Job**:
+```bash
+curl -X POST "${AAP_HOST}/api/v2/jobs/{job_id}/cancel/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**List Inventories**:
+```bash
+curl -X GET "${AAP_HOST}/api/v2/inventories/" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+**List Recent Jobs** (with filtering):
+```bash
+curl -X GET "${AAP_HOST}/api/v2/jobs/?page_size=20&order_by=-created&job_template={template_id}" \
+  -H "Authorization: Bearer ${AAP_TOKEN}"
+```
+
+### Implementation Notes for API Mode
+- Use WebFetch tool with appropriate prompts to make API calls
+- Store AAP credentials securely (use environment variables or secret management)
+- Handle pagination for large result sets (check 'next' field in responses)
+- Implement exponential backoff for rate limiting
+- Validate SSL certificates in production (set AAP_VERIFY_SSL=true)
+- Parse JSON responses to extract relevant fields
+- All endpoints return JSON; use `format=json` query param for stdout endpoint
+
+### Response Structures
+
+**Job Launch Response**:
+```json
+{
+  "id": 845,
+  "url": "/api/v2/jobs/845/",
+  "type": "job",
+  "status": "pending",
+  "job_template": 42,
+  "inventory": 123,
+  "created": "2026-03-05T12:34:56.789Z",
+  "modified": "2026-03-05T12:34:56.789Z"
+}
+```
+
+**Job Status Response**:
+```json
+{
+  "id": 845,
+  "status": "running",
+  "started": "2026-03-05T12:35:00.000Z",
+  "finished": null,
+  "elapsed": 45.23,
+  "job_template_name": "Deploy Application",
+  "playbook": "deploy.yml",
+  "inventory_name": "staging-web"
+}
+```
+
+### Error Handling for API Mode
+- HTTP 401: Token expired or invalid - refresh authentication
+- HTTP 403: Permission denied - check RBAC settings
+- HTTP 404: Resource not found - verify template/job ID
+- HTTP 500: Server error - retry with exponential backoff
+- Connection timeout: Check network connectivity to AAP controller
+
+### Trade-offs of Direct API
+**Pros**:
+- No MCP server dependency
+- Direct control over API interactions
+- Can work in environments without MCP support
+- Easier to debug API calls
+
+**Cons**:
+- Requires credential management
+- More verbose tool calls (WebFetch + parsing)
+- Manual handling of pagination and rate limits
+- SSL/TLS configuration required
+- Less abstraction from API changes
+
+END ALTERNATIVE 1 -->
+
+<!-- ALTERNATIVE 2: EVENT DRIVEN ANSIBLE WEBHOOK INTEGRATION
+## Event Driven Ansible Integration (Commented Out - Enable if Using EDA)
+
+If you prefer to trigger automations via Event Driven Ansible (EDA) webhooks instead of direct job template launches, uncomment this section. This approach is ideal for event-driven workflows and asynchronous operations.
+
+### Configuration Requirements
+- Event Driven Ansible Controller URL
+- Webhook endpoint configured in EDA rulebook
+- Webhook authentication token or HMAC secret
+- Rulebook activated in EDA Controller
+
+### Environment Setup
+```bash
+export EDA_WEBHOOK_URL="https://your-eda-controller.example.com/api/eda/v1/webhook/{webhook_id}/"
+export EDA_WEBHOOK_TOKEN="your-webhook-auth-token"
+export EDA_WEBHOOK_SECRET="your-hmac-secret"  # Optional, for HMAC signing
+```
+
+### Webhook Payload Patterns
+
+**Trigger Deployment via Webhook**:
+```bash
+curl -X POST "${EDA_WEBHOOK_URL}" \
+  -H "Authorization: Bearer ${EDA_WEBHOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "deployment_request",
+    "source": "claude-code",
+    "metadata": {
+      "requested_by": "developer@example.com",
+      "timestamp": "2026-03-05T12:34:56Z",
+      "conversation_id": "conv-abc123"
+    },
+    "payload": {
+      "template_name": "Deploy Application",
+      "inventory": "staging-web",
+      "extra_vars": {
+        "version": "2.1.4",
+        "environment": "staging",
+        "rollback_enabled": true
+      }
+    }
+  }'
+```
+
+**Trigger via Generic Event**:
+```bash
+curl -X POST "${EDA_WEBHOOK_URL}" \
+  -H "Authorization: Bearer ${EDA_WEBHOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "automation_trigger",
+    "action": "restart_service",
+    "target_inventory": "production-web",
+    "service_name": "apache",
+    "reason": "high memory usage detected"
+  }'
+```
+
+**Trigger with HMAC Signing** (for enhanced security):
+```bash
+PAYLOAD='{"event_type":"deployment_request","payload":{"version":"2.1.4"}}'
+SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$EDA_WEBHOOK_SECRET" | awk '{print $2}')
+
+curl -X POST "${EDA_WEBHOOK_URL}" \
+  -H "Authorization: Bearer ${EDA_WEBHOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: sha256=${SIGNATURE}" \
+  -d "$PAYLOAD"
+```
+
+### EDA Rulebook Example
+This rulebook receives webhook events and launches AAP job templates:
+
+```yaml
+---
+- name: Handle Claude Code Automation Requests
+  hosts: all
+  sources:
+    - name: webhook_source
+      ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+        token: "{{ eda_webhook_token }}"
+
+  rules:
+    - name: Process deployment request
+      condition: event.event_type == "deployment_request"
+      action:
+        run_job_template:
+          name: "{{ event.payload.template_name }}"
+          organization: Default
+          inventory: "{{ event.payload.inventory }}"
+          extra_vars: "{{ event.payload.extra_vars }}"
+          wait: false
+
+    - name: Process restart request
+      condition: event.event_type == "automation_trigger" and event.action == "restart_service"
+      action:
+        run_job_template:
+          name: "Service Restart"
+          organization: Default
+          inventory: "{{ event.target_inventory }}"
+          extra_vars:
+            service_name: "{{ event.service_name }}"
+            reason: "{{ event.reason }}"
+          wait: false
+
+    - name: Log all webhook events
+      condition: true
+      action:
+        debug:
+          msg: "Received webhook event: {{ event }}"
+```
+
+### Workflow Changes for EDA Mode
+
+**Step 1 — Discovery** (Modified):
+- Instead of listing job templates, list available webhook event types
+- Present to developer: "Available automation triggers: deployment_request, restart_service, patching_workflow"
+- Map developer intent to event_type
+
+**Step 2 — Pre-flight Check** (Modified):
+- Show webhook payload preview instead of job template details
+- Display: event type, target inventory, payload parameters
+- Same confirmation workflow applies
+
+**Step 3 — Trigger** (Modified):
+- POST webhook payload instead of launching job template
+- Response is typically HTTP 202 Accepted (async)
+- Extract webhook request ID if provided
+
+**Step 4 — Monitor** (Modified):
+- EDA webhooks are async - monitoring depends on EDA rulebook actions
+- If rulebook launches AAP job, query AAP jobs API to find triggered job
+- Match by metadata (timestamp, source=claude-code, conversation_id)
+- Poll job status as normal once job identified
+- If rulebook doesn't provide job ID, inform developer: "Webhook triggered successfully. Job monitoring not available in webhook mode."
+
+**Step 5 — Post-trigger Summary** (Modified):
+- If job was found and monitored, show normal summary
+- If fire-and-forget: "Webhook triggered successfully. Event: {event_type}, Target: {inventory}"
+
+### Implementation Notes for EDA Mode
+- Use Bash tool with curl for webhook POST requests
+- Generate HMAC signatures if webhook requires signing
+- Include metadata for traceability (conversation_id, timestamp, requested_by)
+- Handle HTTP 202 Accepted as success
+- Implement retry logic for network failures (3 retries with exponential backoff)
+- If EDA provides callback URL in response, optionally poll it for status
+- Consider webhook delivery failures as non-blocking (fire-and-forget)
+
+### Event Type Patterns
+
+**Standard Event Types**:
+```json
+{
+  "event_type": "deployment_request",      // Application deployment
+  "event_type": "patching_request",        // OS/package patching
+  "event_type": "restart_request",         // Service restart
+  "event_type": "scaling_request",         // Infrastructure scaling
+  "event_type": "backup_request",          // Backup operations
+  "event_type": "provisioning_request"     // New resource provisioning
+}
+```
+
+**Event Payload Structure**:
+```json
+{
+  "event_type": "deployment_request",
+  "source": "claude-code",
+  "priority": "normal",                    // normal|high|critical
+  "metadata": {
+    "requested_by": "user@example.com",
+    "conversation_id": "conv-xyz789",
+    "timestamp": "2026-03-05T12:34:56Z",
+    "approval_id": "approval-123"          // If pre-approved
+  },
+  "payload": {
+    "template_name": "Deploy Application",
+    "inventory": "staging-web",
+    "extra_vars": {},
+    "limit": "webservers",                 // Ansible limit pattern
+    "tags": ["deploy", "migrate"],         // Ansible tags
+    "skip_tags": ["backup"]                // Ansible skip tags
+  },
+  "callbacks": {
+    "success_webhook": "https://...",      // Optional callback URLs
+    "failure_webhook": "https://..."
+  }
+}
+```
+
+### Error Handling for EDA Mode
+- HTTP 401/403: Check webhook token validity
+- HTTP 404: Verify webhook endpoint URL and activation ID
+- HTTP 400: Validate webhook payload schema
+- HTTP 500: EDA Controller error - check EDA logs
+- Timeout: Webhook endpoint not responding - verify EDA service health
+- Signature mismatch: HMAC secret incorrect or payload modified
+
+### Trade-offs of EDA Webhook Mode
+**Pros**:
+- Decouples trigger from execution (event-driven)
+- Rulebooks can add complex logic and filtering
+- Can trigger multiple actions from single webhook
+- Better for asynchronous workflows
+- Centralized event handling and routing
+- Can integrate with other event sources (monitoring, CI/CD)
+
+**Cons**:
+- Requires EDA Controller deployment and configuration
+- Less direct feedback (async by nature)
+- Harder to monitor specific job outcomes
+- Requires maintaining rulebooks alongside playbooks
+- Additional layer of abstraction
+- Webhook delivery not guaranteed (no built-in retry)
+- Debugging requires checking both EDA and AAP logs
+
+### When to Use EDA Mode
+- Complex event-driven workflows (e.g., "deploy after CI passes AND approval received")
+- Integration with monitoring systems (trigger remediation on alerts)
+- Multi-step automations with branching logic
+- Need to aggregate events before acting
+- Compliance requirements for event audit trails
+- Coordinating actions across multiple AAP instances
+
+END ALTERNATIVE 2 -->
+
 ## Skill Activation
 
 This skill activates automatically when the developer:
