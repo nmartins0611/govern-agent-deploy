@@ -1,0 +1,20 @@
+---
+# Variables for webservers group
+
+# Application settings
+app_name: cheeseburger-map
+app_version: 1.0.0
+
+# Web server settings
+server_admin_email: admin@example.com
+server_name: cheeseburger-map.example.com
+
+# Apache settings
+apache_listen_port: 80
+apache_document_root: /var/www/html/{{ app_name }}
+
+# Firewall settings
+enable_https: true
+
+# Deployment settings
+deploy_timestamp: "{{ ansible_date_time.iso8601 }}"

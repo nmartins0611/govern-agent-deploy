@@ -1,0 +1,139 @@
+---
+- name: Verify Cheeseburger Map Application Deployment
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check if Apache is installed
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Verify httpd is installed
+      ansible.builtin.assert:
+        that:
+          - "'httpd' in ansible_facts.packages"
+        success_msg: "Apache (httpd) is installed"
+        fail_msg: "Apache (httpd) is NOT installed"
+
+    - name: Check Apache service status
+      ansible.builtin.systemd:
+        name: httpd
+      register: httpd_status
+
+    - name: Verify Apache is running and enabled
+      ansible.builtin.assert:
+        that:
+          - httpd_status.status.ActiveState == "active"
+          - httpd_status.status.UnitFileState == "enabled"
+        success_msg: "Apache is running and enabled"
+        fail_msg: "Apache is not properly configured"
+
+    - name: Check if application directory exists
+      ansible.builtin.stat:
+        path: /var/www/html/cheeseburger-map
+      register: app_dir
+
+    - name: Verify application directory
+      ansible.builtin.assert:
+        that:
+          - app_dir.stat.exists
+          - app_dir.stat.isdir
+        success_msg: "Application directory exists"
+        fail_msg: "Application directory not found"
+
+    - name: Check if index.html exists
+      ansible.builtin.stat:
+        path: /var/www/html/cheeseburger-map/index.html
+      register: index_file
+
+    - name: Verify index.html
+      ansible.builtin.assert:
+        that:
+          - index_file.stat.exists
+        success_msg: "index.html found"
+        fail_msg: "index.html not found"
+
+    - name: Check firewall service status
+      ansible.builtin.systemd:
+        name: firewalld
+      register: firewall_status
+
+    - name: Verify firewall is running
+      ansible.builtin.assert:
+        that:
+          - firewall_status.status.ActiveState == "active"
+        success_msg: "Firewall is running"
+        fail_msg: "Firewall is not running"
+
+    - name: Check if HTTP port is open
+      ansible.builtin.shell: |
+        firewall-cmd --list-services | grep -q http
+      register: http_check
+      changed_when: false
+      failed_when: false
+
+    - name: Verify HTTP is allowed through firewall
+      ansible.builtin.assert:
+        that:
+          - http_check.rc == 0
+        success_msg: "HTTP traffic is allowed through firewall"
+        fail_msg: "HTTP traffic is NOT allowed through firewall"
+
+    - name: Test HTTP response
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}/"
+        return_content: false
+        status_code: 200
+      register: http_response
+      failed_when: false
+
+    - name: Verify web server responds
+      ansible.builtin.assert:
+        that:
+          - http_response.status == 200
+        success_msg: "Web server is responding correctly"
+        fail_msg: "Web server is not responding (status: {{ http_response.status | default('N/A') }})"
+      when: http_response.status is defined
+
+    - name: Check SELinux status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display SELinux status
+      ansible.builtin.debug:
+        msg: "SELinux is {{ selinux_status.stdout }}"
+      when: selinux_status.rc == 0
+
+    - name: Check SELinux context of app directory
+      ansible.builtin.shell: |
+        ls -Z /var/www/html/cheeseburger-map | grep httpd_sys_content_t
+      register: selinux_context
+      changed_when: false
+      failed_when: false
+      when: ansible_selinux.status == "enabled"
+
+    - name: Verify SELinux context
+      ansible.builtin.assert:
+        that:
+          - selinux_context.rc == 0
+        success_msg: "SELinux context is correctly set"
+        fail_msg: "SELinux context may be incorrect"
+      when:
+        - ansible_selinux.status == "enabled"
+        - selinux_context.rc is defined
+
+    - name: Display verification summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Verification Complete!"
+          - "=========================================="
+          - "✓ Apache installed and running"
+          - "✓ Application files deployed"
+          - "✓ Firewall configured"
+          - "✓ Web server responding on port 80"
+          - "Application URL: http://{{ ansible_default_ipv4.address }}/"
+          - "=========================================="

@@ -1,0 +1,81 @@
+---
+- name: Complete Cleanup - Remove Application and Apache
+  hosts: webservers
+  become: true
+
+  vars:
+    app_name: cheeseburger-map
+    app_dest_dir: /var/www/html/{{ app_name }}
+
+  tasks:
+    - name: Confirm complete cleanup
+      ansible.builtin.pause:
+        prompt: |
+          WARNING: This will completely remove:
+          - Cheeseburger Map application
+          - Apache (httpd) web server
+          - Firewall rules for HTTP/HTTPS
+
+          This is a destructive operation!
+          Press ENTER to continue or Ctrl+C to abort.
+
+    - name: Stop and disable Apache service
+      ansible.builtin.systemd:
+        name: httpd
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove Apache packages
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove application directory
+      ansible.builtin.file:
+        path: "{{ app_dest_dir }}"
+        state: absent
+
+    - name: Remove Apache virtual host configuration
+      ansible.builtin.file:
+        path: /etc/httpd/conf.d/{{ app_name }}.conf
+        state: absent
+
+    - name: Remove firewall rules for HTTP
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: disabled
+        immediate: true
+      failed_when: false
+
+    - name: Remove firewall rules for HTTPS
+      ansible.posix.firewalld:
+        service: https
+        permanent: true
+        state: disabled
+        immediate: true
+      failed_when: false
+
+    - name: Remove application logs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/httpd/{{ app_name }}-access.log
+        - /var/log/httpd/{{ app_name }}-error.log
+      failed_when: false
+
+    - name: Display cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Complete Cleanup Finished!"
+          - "=========================================="
+          - "✓ Application removed"
+          - "✓ Apache (httpd) uninstalled"
+          - "✓ Firewall rules removed"
+          - "✓ Configuration files removed"
+          - ""
+          - "Server has been returned to pre-deployment state"
+          - "=========================================="

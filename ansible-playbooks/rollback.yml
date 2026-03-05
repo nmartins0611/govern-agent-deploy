@@ -1,0 +1,58 @@
+---
+- name: Rollback/Remove Cheeseburger Map Application
+  hosts: webservers
+  become: true
+
+  vars:
+    app_name: cheeseburger-map
+    app_dest_dir: /var/www/html/{{ app_name }}
+
+  tasks:
+    - name: Confirm rollback
+      ansible.builtin.pause:
+        prompt: |
+          This will remove the Cheeseburger Map application and Apache configuration.
+          Apache service will remain installed but the app will be removed.
+          Press ENTER to continue or Ctrl+C to abort.
+
+    - name: Stop Apache service
+      ansible.builtin.systemd:
+        name: httpd
+        state: stopped
+
+    - name: Remove Apache virtual host configuration
+      ansible.builtin.file:
+        path: /etc/httpd/conf.d/{{ app_name }}.conf
+        state: absent
+
+    - name: Remove application directory
+      ansible.builtin.file:
+        path: "{{ app_dest_dir }}"
+        state: absent
+
+    - name: Remove application logs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/httpd/{{ app_name }}-access.log
+        - /var/log/httpd/{{ app_name }}-error.log
+
+    - name: Restart Apache to load default configuration
+      ansible.builtin.systemd:
+        name: httpd
+        state: started
+
+    - name: Display rollback summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Rollback Complete!"
+          - "=========================================="
+          - "✓ Application files removed"
+          - "✓ Apache configuration removed"
+          - "✓ Apache restarted with default configuration"
+          - ""
+          - "Note: Apache, firewalld remain installed"
+          - "To completely remove: ansible-playbook cleanup.yml"
+          - "=========================================="

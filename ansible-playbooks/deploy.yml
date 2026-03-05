@@ -1,0 +1,106 @@
+---
+- name: Deploy Cheeseburger Map Application to RHEL Webservers
+  hosts: webservers
+  become: true
+  vars:
+    app_name: cheeseburger-map
+    app_source_dir: ../cheeseburger-map-app
+    app_dest_dir: /var/www/html/{{ app_name }}
+    apache_service: httpd
+    firewall_service: firewalld
+
+  tasks:
+    - name: Install Apache (httpd) web server
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Install firewalld if not present
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+
+    - name: Ensure firewalld is running
+      ansible.builtin.systemd:
+        name: "{{ firewall_service }}"
+        state: started
+        enabled: true
+
+    - name: Configure firewall to allow HTTP traffic
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: Configure firewall to allow HTTPS traffic
+      ansible.posix.firewalld:
+        service: https
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_dest_dir }}"
+        state: directory
+        owner: apache
+        group: apache
+        mode: '0755'
+
+    - name: Copy application files to webserver
+      ansible.builtin.copy:
+        src: "{{ app_source_dir }}/"
+        dest: "{{ app_dest_dir }}/"
+        owner: apache
+        group: apache
+        mode: '0644'
+      notify: Restart Apache
+
+    - name: Set executable permissions on directory
+      ansible.builtin.file:
+        path: "{{ app_dest_dir }}"
+        state: directory
+        recurse: true
+        owner: apache
+        group: apache
+
+    - name: Set SELinux context for web content
+      ansible.builtin.sefcontext:
+        target: "{{ app_dest_dir }}(/.*)?"
+        setype: httpd_sys_content_t
+        state: present
+      when: ansible_selinux.status == "enabled"
+
+    - name: Apply SELinux context
+      ansible.builtin.command:
+        cmd: restorecon -Rv {{ app_dest_dir }}
+      when: ansible_selinux.status == "enabled"
+      changed_when: false
+
+    - name: Create Apache virtual host configuration
+      ansible.builtin.template:
+        src: templates/cheeseburger-map.conf.j2
+        dest: /etc/httpd/conf.d/{{ app_name }}.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart Apache
+
+    - name: Ensure Apache is enabled and started
+      ansible.builtin.systemd:
+        name: "{{ apache_service }}"
+        state: started
+        enabled: true
+
+    - name: Wait for Apache to be ready
+      ansible.builtin.wait_for:
+        port: 80
+        delay: 2
+        timeout: 30
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.systemd:
+        name: "{{ apache_service }}"
+        state: restarted

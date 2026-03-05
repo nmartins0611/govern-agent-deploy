@@ -1,0 +1,12 @@
+---
+# Ansible Galaxy requirements
+# Install with: ansible-galaxy collection install -r requirements.yml
+
+collections:
+  # POSIX collection for firewalld module
+  - name: ansible.posix
+    version: ">=1.5.0"
+
+  # Built-in collection (usually included, but explicit for clarity)
+  - name: ansible.builtin
+    version: ">=2.14.0"

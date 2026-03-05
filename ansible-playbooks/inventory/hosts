@@ -1,0 +1,16 @@
+[webservers]
+# Add your RHEL webserver hostnames or IP addresses here
+# Examples:
+# web01.example.com
+# web02.example.com
+# 192.168.1.10
+# 192.168.1.11
+
+# You can also define connection parameters per host:
+# web01.example.com ansible_user=ansible ansible_ssh_private_key_file=~/.ssh/id_rsa
+
+[webservers:vars]
+# Common variables for all webservers
+ansible_user=ansible
+ansible_become=true
+ansible_become_method=sudo
